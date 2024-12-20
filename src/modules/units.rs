@@ -1,5 +1,5 @@
 /*
-Jade Backend by Alyx Shang.
+Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
@@ -30,20 +30,28 @@ use serde::Deserialize;
 /// crate.
 use sqlx::postgres::Postgres;
 
+/// A data structure containing information
+/// on a Jade User.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeUser {
+    pub email: String,
     pub username: String,
-    pub password: String,
+    pub pwd: String,
     pub moods: Vec<JadeMood>,
     pub api_tokens: Vec<APIToken>
 }
 
+/// A structure containing information
+/// on a saved Jade mood.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeMood {
+    pub id: String,
     pub mood: String,
     pub created_at: String
 }
 
+/// A structure containing information
+/// on a created API token.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct APIToken {
     pub token: String,
@@ -54,24 +62,40 @@ pub struct APIToken {
     pub can_delete_user: bool,
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for creating
+/// users.
 #[derive(Deserialize)]
 pub struct CreateUserPayload {
+    pub email: String,
     pub username: String,
     pub password: String
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for operations
+/// only requiring an API token.
 #[derive(Deserialize)]
 pub struct TokenOnlyPayload {
     pub api_token: String,
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for changing
+/// account information.
 #[derive(Deserialize)]
 pub struct ChangeEntityPayload {
-    pub old_entity: String,
     pub new_entity: String,
     pub api_token: String,
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for creating
+/// an API token.
 #[derive(Deserialize)]
 pub struct CreateTokenPayload {
     pub username: String,
@@ -82,6 +106,10 @@ pub struct CreateTokenPayload {
     pub can_delete_user: bool
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for deleting
+/// an API token.
 #[derive(Deserialize)]
 pub struct DeleteTokenPayload {
     pub username: String,
@@ -89,15 +117,34 @@ pub struct DeleteTokenPayload {
     pub api_token: String,
 }
 
+/// A structure containing
+/// information to submit
+/// a payload for creating
+/// or deleting a new Jade
+/// mood.
 #[derive(Deserialize)]
 pub struct MoodActionPayload {
     pub api_token: String,
     pub mood: String,
 }
 
+/// A structure containing
+/// information for confirming
+/// whether data-less operations
+/// are successful.
 #[derive(Serialize)]
 pub struct StatusResponse {
     pub status: usize
+}
+
+/// A structure containing
+/// information to submit
+/// a payload for operations
+/// that only require a username
+/// as a unique identifier of a user.
+#[derive(Deserialize)]
+pub struct UsernameOnlyPayload{
+    pub username: String
 }
 
 /// A structure containing

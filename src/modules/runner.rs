@@ -1,5 +1,5 @@
 /*
-Mocha Backend by Alyx Shang.
+Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
@@ -20,21 +20,24 @@ use actix_web::App;
 /// rules.
 use actix_cors::Cors;
 
+/// Importing the "get"
+/// function to register a 
+/// "GET" service.
+use actix_web::web::get;
+
+/// Importing this crate's
+/// error structure.
+use super::err::JadeErr;
+
 /// Importing the "post"
 /// function to register a 
 /// "POST" service.
 use actix_web::web::post;
 
-use actix_web::web::get;
-
 /// Importing the "Data"
 /// structure to register
 /// persistent app data.
 use actix_web::web::Data;
-
-/// Importing this crate's
-/// error structure.
-use super::err::JadeErr;
 
 /// Importing the "HttpServer"
 /// structure to create an

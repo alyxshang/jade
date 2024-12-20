@@ -2,51 +2,31 @@
 Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
-/// Importing the "Json"
-/// structure to return JSON
-/// responses.
-use actix_web::web::Json;
 
-use crate::wipe_token;
 use crate::APIToken;
-use crate::DeleteTokenPayload;
 use crate::JadeMood;
-
+use crate::wipe_token;
 use super::err::JadeErr;
-
-use actix_web::HttpResponse;
-
-use super::units::AppData;
-
-use actix_web::web::Data;
-
-use super::units::JadeUser;
-
-use super::units::CreateUserPayload;
-
-use super::rw::write_user;
-
 use super::rw::wipe_user;
-
-use super::units::StatusResponse;
-
-use super::units::TokenOnlyPayload;
-
-use super::units::CreateTokenPayload;
-
-use super::rw::create_new_token;
-
-use super::units::MoodActionPayload;
-
-use super::rw::get_user_moods;
-
-use super::rw::get_user_tokens;
-
+use actix_web::web::Data;
 use super::rw::wipe_mood;
-
+use actix_web::web::Json;
+use super::rw::write_user;
+use super::units::AppData;
+use actix_web::HttpResponse;
+use super::units::JadeUser;
+use super::rw::get_user_moods;
+use crate::DeleteTokenPayload;
+use super::rw::get_user_tokens;
 use super::rw::create_new_mood;
-
+use super::rw::create_new_token;
 use super::rw::get_mood_from_db;
+use super::units::StatusResponse;
+use super::units::TokenOnlyPayload;
+use super::units::MoodActionPayload;
+use super::units::CreateUserPayload;
+use super::units::CreateTokenPayload;
+use super::units::UsernameOnlyPayload;
 
 pub async fn create_user(
     payload: Json<CreateUserPayload>,
@@ -116,10 +96,10 @@ pub async fn delete_mood(
 }
 
 pub async fn get_mood(
-    payload: Json<TokenOnlyPayload>,
+    payload: Json<UsernameOnlyPayload>,
     data: Data<AppData>
 ) -> Result<HttpResponse, JadeErr> {
-    let mood: JadeMood = match get_mood_from_db(&payload.api_token, &data.pool).await {
+    let mood: JadeMood = match get_mood_from_db(&payload, &data.pool).await {
         Ok(mood) => mood,
         Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };

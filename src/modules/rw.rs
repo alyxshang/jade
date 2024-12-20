@@ -1,50 +1,28 @@
 /*
-Jade Backend by Alyx Shang.
+Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
-/// Importing the
-/// "Pool" structure
-/// from the "sqlx" crate
-/// to make a pool for
-/// database connections.
 use sqlx::Pool;
-
-use bcrypt::DEFAULT_COST;
-
-use bcrypt::verify;
-
 use sqlx::query;
-
 use bcrypt::hash;
-
-use super::time::get_time;
-
-use crate::MoodActionPayload;
-
-use super::units::TokenOnlyPayload;
-
-use super::units::CreateTokenPayload;
-
-use super::units::StatusResponse;
-
+use bcrypt::verify;
 use super::err::JadeErr;
-
+use bcrypt::DEFAULT_COST;
+use super::time::get_time;
 use super::units::JadeUser;
-
 use super::units::JadeMood;
-
 use super::units::APIToken;
-use super::utils::hash_string;
-
-/// Importing the "Postgres"
-/// structure from the "sqlx"
-/// crate.
 use sqlx::postgres::Postgres;
-
-use super::units::DeleteTokenPayload;
-
+use crate::ChangeEntityPayload;
+use crate::MoodActionPayload;
+use super::utils::hash_string;
+use super::units::StatusResponse;
+use super::units::TokenOnlyPayload;
 use super::units::CreateUserPayload;
+use super::units::CreateTokenPayload;
+use super::units::DeleteTokenPayload;
+use super::units::UsernameOnlyPayload;
 
 pub async fn write_user(
     payload: &CreateUserPayload, 
@@ -69,14 +47,16 @@ pub async fn write_user(
     tokens.push(first_token);
     let new_user: JadeUser = JadeUser{
         username: payload.username,
-        password: hashed,
+        email: payload.email,
+        pwd: hashed,
         moods: moods,
         api_tokens: tokens
     };
     let _insert_op = match sqlx::query!(
-        "INSERT INTO users (username, password, moods, api_tokens) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO users (username, pwd, email, moods, api_tokens) VALUES ($1, $2, $3, $4, $5)",
         new_user.username,
         new_user.password,
+        new_user.email,
         new_user.moods,
         new_user.api_tokens
     )
@@ -95,7 +75,7 @@ pub async fn write_user(
 }
 
 pub async fn get_user_by_api_token(
-    token: &String, 
+    sup_token: &String, 
     pool: &Pool<Postgres>
 ) -> Result<JadeUser, JadeErr>{
     let objects = match sqlx::query_as!(JadeUser,"SELECT * FROM users").fetch_all(pool).await {
@@ -104,9 +84,9 @@ pub async fn get_user_by_api_token(
     };
     let mut res_vec: Vec<JadeUser> = Vec::new();
     for user in objects {
-        let tokens: Vec<APIToken> = user.tokens;
+        let tokens: Vec<APIToken> = user.api_tokens;
         for token in tokens {
-            if token.token == token && token.is_active {
+            if &token.token == sup_token && token.is_active {
                 res_vec.push(user)
             }
             else {}
@@ -132,7 +112,7 @@ pub async fn get_user_by_handle(
     let mut res_vec: Vec<JadeUser> = Vec::new();
     for user in objects {
         
-            if user.username == username {
+            if &user.username == username {
                 res_vec.push(user)
             }
             else {}
@@ -150,13 +130,13 @@ pub async fn wipe_user(
     payload: &TokenOnlyPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr>{
+    let mut result: usize = 1;
     let user: JadeUser = match get_user_by_api_token(&payload.api_token, pool).await {
         Ok(created) => created,
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
     let username: String = user.username;
-    let result: usize = 1;
-    let wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username=$1", username)
+    let _wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username=$1", username)
         .execute(pool)
         .await
     {
@@ -201,7 +181,7 @@ pub async fn create_new_token(
         can_delete_user: payload.can_delete_user,
         can_set_mood: payload.can_set_mood
     };
-    let password_verif: bool = match verify(&payload.password, &user.password){
+    let password_verif: bool = match verify(&payload.password, &user.pwd){
         Ok(user) => user,
         Err(e) => return Err::<APIToken, JadeErr>(JadeErr::new(&e.to_string()))
     };
@@ -209,7 +189,7 @@ pub async fn create_new_token(
     new_tokens.push(api_token);
     if password_verif{
         let update_op: () = match query!(
-            "UPDATE users SET api_tokens = $1 WHERE id = $2",
+            "UPDATE users SET api_tokens = $1 WHERE username = $2",
             new_tokens,
             username,
         ).execute(pool).await
@@ -234,9 +214,9 @@ pub async fn wipe_token(
         Ok(user) => user,
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let password_verif: bool = match verify(&payload.password, &user.password){
+    let password_verif: bool = match verify(&payload.password, &user.pwd){
         Ok(user) => user,
-        Err(e) => return Err::<APIToken, JadeErr>(JadeErr::new(&e.to_string()))
+        Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
     let mut new_tokens: Vec<APIToken> = Vec::new();
     for token in user.api_tokens{
@@ -247,7 +227,7 @@ pub async fn wipe_token(
     }
     if password_verif{
         let update_op: () = match query!(
-            "UPDATE users SET api_tokens = $1 WHERE id = $2",
+            "UPDATE users SET api_tokens = $1 WHERE username = $2",
             new_tokens,
             username,
         ).execute(pool).await
@@ -274,8 +254,9 @@ pub async fn create_new_mood(
         Err(e) => return Err::<JadeMood, JadeErr>(JadeErr::new(&e.to_string()))
     };
     let new_mood: JadeMood = JadeMood{
+        id: hash_string(&format!("{}:{}", get_time(), user.username)),
         mood: payload.mood,
-        created_at: get_time
+        created_at: get_time()
     };
     let token_verif: bool = match verify_token(&payload.api_token, pool).await {
         Ok(token_verif) => token_verif,
@@ -285,7 +266,7 @@ pub async fn create_new_mood(
     new_moods.push(new_mood);
     if token_verif{
         let update_op: () = match query!(
-            "UPDATE users SET moods = $1 WHERE id = $2",
+            "UPDATE users SET moods = $1 WHERE username = $2",
             new_moods,
             user.username,
         ).execute(pool).await
@@ -323,7 +304,7 @@ pub async fn wipe_mood(
     };
     if token_verif{
         let update_op: () = match query!(
-            "UPDATE users SET moods = $1 WHERE id = $2",
+            "UPDATE users SET moods = $1 WHERE username = $2",
             new_moods,
             user.username,
         ).execute(pool).await
@@ -341,24 +322,12 @@ pub async fn wipe_mood(
 
 }
 
-pub async fn get_mood_from_db(api_token: &String, pool: &Pool<Postgres>) -> Result<JadeMood, JadeErr>{
-    let user: JadeUser = match get_user_by_api_token(api_token, pool).await {
+pub async fn get_mood_from_db(payload: &UsernameOnlyPayload, pool: &Pool<Postgres>) -> Result<JadeMood, JadeErr>{
+    let user: JadeUser = match get_user_by_handle(&payload.username, pool).await {
         Ok(user) => user,
         Err(e) => return Err::<JadeMood, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let token_verif: bool = match verify_token(api_token, pool).await {
-        Ok(token_verif) => token_verif,
-        Err(e) => return Err::<JadeMood, JadeErr>(JadeErr::new(&e.to_string()))
-    };
-    if token_verif && user.moods.len() != 0{
-        Ok(user.moods[0].clone())
-    }
-    else {
-        let e: String = "Wrong token or no moods have been set yet.".to_string();
-        return Err::<JadeMood, JadeErr>(JadeErr::new(&e.to_string()));
-    }
-
-
+    Ok(user.moods[0].clone())
 } 
 
 pub async fn get_user_moods(api_token: &String, pool: &Pool<Postgres>) -> Result<Vec<JadeMood>, JadeErr>{
@@ -384,7 +353,7 @@ pub async fn get_user_tokens(password: &String, username: &String, pool: &Pool<P
         Ok(user) => user,
         Err(e) => return Err::<Vec<APIToken>, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let pwd_verif: bool = match verify(password, &user.password) {
+    let pwd_verif: bool = match verify(password, &user.pwd) {
         Ok(pwd_verif) => pwd_verif,
         Err(e) => return Err::<Vec<APIToken>, JadeErr>(JadeErr::new(&e.to_string()))
     };
@@ -395,4 +364,79 @@ pub async fn get_user_tokens(password: &String, username: &String, pool: &Pool<P
         let e: String = "Wrong token or no moods have been set yet.".to_string();
         return Err::<Vec<APIToken>, JadeErr>(JadeErr::new(&e.to_string()));
     }
+}
+
+pub async fn update_user_pwd(
+    payload: &ChangeEntityPayload, 
+    pool: &Pool<Postgres>
+) -> Result<StatusResponse, JadeErr> {
+    let mut result: usize = 1;
+    let user: JadeUser = match get_user_by_api_token(&payload.api_token, pool).await {
+        Ok(user) => user,
+        Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let token_verif: bool = match verify_token(&payload.api_token, pool).await {
+        Ok(token_verif) => token_verif,
+        Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    if token_verif{
+        let _update_op: () = match query!(
+            "UPDATE users SET pwd = $1 WHERE username = $2",
+            payload.new_entity,
+            user.username,
+        ).execute(pool).await
+        {
+            Ok(_feedback) => result = 0,
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        let status_resp: StatusResponse = StatusResponse{ status: result };
+        Ok(status_resp)
+    }
+    else {
+        let e: String = "Wrong token or the token is not active.".to_string();
+        return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()));
+    }    
+}
+
+pub async fn update_user_email(
+    payload: &ChangeEntityPayload, 
+    pool: &Pool<Postgres>
+) -> Result<StatusResponse, JadeErr> {
+    let mut result: usize = 1;
+    let user: JadeUser = match get_user_by_api_token(&payload.api_token, pool).await {
+        Ok(user) => user,
+        Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let token_verif: bool = match verify_token(&payload.api_token, pool).await {
+        Ok(token_verif) => token_verif,
+        Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    if token_verif{
+        let _update_op: () = match query!(
+            "UPDATE users SET email = $1 WHERE username = $2",
+            payload.new_entity,
+            user.username,
+        ).execute(pool).await
+        {
+            Ok(_feedback) => result = 0,
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        let status_resp: StatusResponse = StatusResponse{ status: result };
+        Ok(status_resp)
+    }
+    else {
+        let e: String = "Wrong token or the token is not active.".to_string();
+        return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()));
+    }    
+}
+
+pub async fn get_user_info(
+    payload: &TokenOnlyPayload, 
+    pool: &Pool<Postgres>
+) -> Result<JadeUser, JadeErr> {
+    let user: JadeUser = match get_user_by_api_token(&payload.api_token, pool).await {
+        Ok(user) => user,
+        Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    Ok(user)
 }

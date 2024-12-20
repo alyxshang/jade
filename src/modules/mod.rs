@@ -1,3 +1,8 @@
+/*
+Jade by Alyx Shang.
+Licensed under the FSL v1.
+*/
+
 pub mod rw;
 pub mod cli;
 pub mod err;

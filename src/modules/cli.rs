@@ -1,5 +1,5 @@
 /*
-Mocha Backend by Alyx Shang.
+Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
@@ -31,7 +31,7 @@ use super::units::ConfigData;
 pub async fn cli() -> Result<String, JadeErr>{
     let result: String;
     let mut mocha: App = App::new(
-        "Mocha",
+        "Jade",
         "0.1.0",
         "Alyx Shang"
     );

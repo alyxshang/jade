@@ -1,5 +1,5 @@
 /*
-Jade Backend by Alyx Shang.
+Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
