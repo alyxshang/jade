@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM api_tokens",
+  "query": "SELECT * FROM api_tokens WHERE token = $1",
   "describe": {
     "columns": [
       {
@@ -45,7 +45,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Text"
+      ]
     },
     "nullable": [
       false,
@@ -58,5 +60,5 @@
       false
     ]
   },
-  "hash": "8e5036af858c5443de0d650ad89473f3688bde779a6b6f9a00145103fc70714b"
+  "hash": "5d3a3732ca78a7a02549d0a2c20ce02693d30fc672298b1292ae2e24f5b67b2a"
 }

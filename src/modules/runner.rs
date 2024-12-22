@@ -25,9 +25,19 @@ use actix_cors::Cors;
 /// "GET" service.
 use actix_web::web::get;
 
+/// Importing the service
+/// function for setting
+/// a user's current mood.
+use super::api::set_mood;
+
 /// Importing this crate's
 /// error structure.
 use super::err::JadeErr;
+
+/// Importing the service
+/// function for getting
+/// a user's current mood.
+use super::api::get_mood;
 
 /// Importing the "post"
 /// function to register a 
@@ -44,31 +54,64 @@ use actix_web::web::Data;
 /// Actix Web app.
 use actix_web::HttpServer;
 
+/// Importing the service
+/// function for getting
+/// a user's moods.
+use super::api::get_moods;
+
 /// Importing the "AppData"
 /// structure to register
 /// persistent app data.
 use super::units::AppData;
 
-use super::api::create_token;
-use super::api::create_user;
-use super::api::delete_mood;
-use super::api::delete_token;
-use super::api::delete_user;
-use super::api::get_mood;
-use super::api::change_user_email;
-use super::api::change_user_pwd;
-use super::api::get_moods;
+/// Importing the service
+/// function for getting
+/// a user's API tokens.
 use super::api::get_tokens;
-use super::api::set_mood;
+
+/// Importing the service
+/// function for deleting
+/// a user's mood.
+use super::api::delete_mood;
+
+/// Importing the service
+/// function for deleting
+/// a user.
+use super::api::delete_user;
+
+/// Importing the service
+/// function for creating
+/// a user.
+use super::api::create_user;
 
 /// Importing the "ConfigData"
 /// structure for explicit typing.
 use super::units::ConfigData;
 
+/// Importing the service
+/// function for creating
+/// an API token for a user.
+use super::api::create_token;
+
+/// Importing the service
+/// function for deleting
+/// a user's API token.
+use super::api::delete_token;
+
 /// Importing the "Postgres"
 /// structure from the "sqlx"
 /// crate.
 use sqlx::postgres::Postgres;
+
+/// Importing the service
+/// function for changing
+/// a user's password.
+use super::api::change_user_pwd;
+
+/// Importing the service
+/// function for changing
+/// a user's email address.
+use super::api::change_user_email;
 
 /// Importing the "create_connection"
 /// function to create a connection

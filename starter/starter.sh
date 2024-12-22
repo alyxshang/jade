@@ -1,0 +1,4 @@
+init(){
+    /jade
+}
+init

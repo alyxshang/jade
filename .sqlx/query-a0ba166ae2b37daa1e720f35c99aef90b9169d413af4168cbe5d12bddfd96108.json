@@ -1,16 +1,15 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO users (username, pwd, email) VALUES ($1, $2, $3)",
+  "query": "UPDATE users SET email_token = $1 WHERE username = $2",
   "describe": {
     "columns": [],
     "parameters": {
       "Left": [
-        "Text",
         "Text",
         "Text"
       ]
     },
     "nullable": []
   },
-  "hash": "e2fcf1fca8e895bff8e5891abc72de3b02b4f37cb14bbae9e01279ec47600b90"
+  "hash": "a0ba166ae2b37daa1e720f35c99aef90b9169d413af4168cbe5d12bddfd96108"
 }

@@ -9,8 +9,9 @@ use jade::cli;
 
 /// The main point of entry for the
 /// Rust compiler.
-fn main() {
-    match cli(){
+#[tokio::main]
+async fn main() {
+    match cli().await {
         Ok(feedback) => println!("{}", feedback),
         Err(e) => println!("{}", &e.to_string())
     }

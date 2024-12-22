@@ -34,18 +34,29 @@ use sqlx::postgres::Postgres;
 /// on a Jade User.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeUser {
-    pub email: String,
     pub username: String,
+    pub email: String,
     pub pwd: String,
+    pub email_token: String,
+    pub is_active: bool
+}
+
+/// A data structure a file
+/// a Jade user has uploaded.
+#[derive(Deserialize, Serialize, FromRow, Clone)]
+pub struct JadeUserFile {
+    pub username: String,
+    pub file_name: String,
+    pub data: Vec<u8>
 }
 
 /// A structure containing information
 /// on a saved Jade mood.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeMood {
-    pub mood: String,
-    pub is_active: bool,
     pub username: String,
+    pub is_active: bool,
+    pub mood: String,
     pub created_at: String
 }
 
@@ -53,13 +64,14 @@ pub struct JadeMood {
 /// on a created API token.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct APIToken {
+    pub username: String,
     pub token: String,
     pub created_at: String,
     pub is_active: bool,
-    pub username: String,
     pub can_change_pwd: bool,
     pub can_set_mood: bool,
     pub can_delete_user: bool,
+    pub can_change_email: bool
 }
 
 /// A structure containing
@@ -100,10 +112,10 @@ pub struct ChangeEntityPayload {
 pub struct CreateTokenPayload {
     pub username: String,
     pub password: String,
-    pub is_active: bool,
     pub can_change_pwd: bool,
     pub can_set_mood: bool,
-    pub can_delete_user: bool
+    pub can_delete_user: bool,
+    pub can_change_email: bool
 }
 
 /// A structure containing

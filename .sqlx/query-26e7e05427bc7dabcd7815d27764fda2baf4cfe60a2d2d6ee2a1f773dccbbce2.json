@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM moods WHERE username=$1",
+  "query": "SELECT * FROM users",
   "describe": {
     "columns": [
       {
@@ -10,31 +10,35 @@
       },
       {
         "ordinal": 1,
-        "name": "is_active",
-        "type_info": "Bool"
+        "name": "email",
+        "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "mood",
+        "name": "pwd",
         "type_info": "Text"
       },
       {
         "ordinal": 3,
-        "name": "created_at",
+        "name": "email_token",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_active",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
-      "Left": [
-        "Text"
-      ]
+      "Left": []
     },
     "nullable": [
+      false,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "7815b38a0704f3d7fd569613c19c35f5e0534040ec8757921ff1cd7a95f577d2"
+  "hash": "26e7e05427bc7dabcd7815d27764fda2baf4cfe60a2d2d6ee2a1f773dccbbce2"
 }

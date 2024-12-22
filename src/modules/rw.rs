@@ -50,6 +50,10 @@ use super::units::JadeMood;
 /// on a user's API tokens.
 use super::units::APIToken;
 
+/// Importing the function
+/// to send an email.
+use super::email::send_email;
+
 /// Importing the "Postgres"
 /// structure from the "sqlx"
 /// crate.
@@ -104,6 +108,57 @@ use super::units::UsernameOnlyPayload;
 /// API tokens.
 use super::units::UserAPITokensPayload;
 
+/// This function attempts to verify the email
+/// the user has submitted. If the operation succeeds,
+/// a boolean "true" is returned. If the operation fails,
+/// an error is returned or a boolean "false" is returned.
+pub async fn verify_email(
+    email_token: &String,
+    pool: &Pool<Postgres>
+) -> Result<bool, JadeErr> {
+    let mut result: bool = false;
+    let users: Vec<JadeUser> = match sqlx::query_as!(JadeUser, "SELECT * FROM users")
+        .fetch_all(pool)
+        .await
+    {
+        Ok(users) => users,
+        Err(e) => return Err::<bool, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let mut user_vec: Vec<JadeUser> = Vec::new();
+    for user in users {
+        if &user.email_token == email_token {
+            result = true;
+            user_vec.push(user);
+        }
+        else {}
+    }
+    let hashed_time: String = match hash(get_time(), DEFAULT_COST){
+        Ok(hashed_time) => hashed_time,
+        Err(e) => return Err::<bool, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    if user_vec.len() == 1 {}
+    else {
+        let e: String = "No user with the specified token found.".to_string();
+        return Err::<bool, JadeErr>(JadeErr::new(&e.to_string()))
+    }
+    let user: JadeUser = user_vec[0].clone();
+    let _update_op_active: () = match sqlx::query!("UPDATE users SET is_active = $1 WHERE username = $2", true, user.username)
+            .execute(pool)
+            .await
+    {
+        Ok(_feedback) => result = true,
+        Err(e) => return Err::<bool, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let _update_token: () = match sqlx::query!("UPDATE users SET email_token = $1 WHERE username = $2", hashed_time, user.username)
+            .execute(pool)
+            .await
+    {
+        Ok(_feedback) => result = true,
+        Err(e) => return Err::<bool, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    Ok(result)
+}
+
 /// Attempts to create a new user with the given payload.
 /// If this operation succeeds, an instance of the "JadeUser" structure is
 /// returned. If this operation fails, an error is returned.
@@ -111,20 +166,28 @@ pub async fn write_user(
     payload: &CreateUserPayload,
     pool: &Pool<Postgres>
 ) -> Result<JadeUser, JadeErr> {
-    let hashed = match hash(payload.password.clone(), DEFAULT_COST){
+    let hashed_pwd = match hash(payload.password.clone(), DEFAULT_COST){
+        Ok(hashed) => hashed,
+        Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let hashed_email = match hash(&format!("{}{}{}", &payload.username, &payload.email, get_time()), DEFAULT_COST){
         Ok(hashed) => hashed,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
     let new_user: JadeUser = JadeUser{
         username: payload.username.clone(),
         email: payload.email.clone(),
-        pwd: hashed
+        pwd: hashed_pwd,
+        email_token: hashed_email,
+        is_active: false
     };
     let _insert_op = match sqlx::query!(
-        "INSERT INTO users (username, pwd, email) VALUES ($1, $2, $3)",
+        "INSERT INTO users (username, email, pwd, email_token, is_active) VALUES ($1, $2, $3, $4, $5)",
         new_user.username,
-        new_user.pwd,
         new_user.email,
+        new_user.pwd,
+        new_user.email_token,
+        new_user.is_active
     )
         .execute(pool)
         .await
@@ -132,11 +195,22 @@ pub async fn write_user(
         Ok(_feedback) => {},
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let res: JadeUser = match get_user_by_handle(&payload.username, pool).await {
-        Ok(res) => res,
+    let send_res: bool = match send_email(from, to, subject, msg, server).await {
+        Ok(send_res) => send_res,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    Ok(res)
+    if send_res{
+        let res: JadeUser = match get_user_by_handle(&payload.username, pool).await {
+            Ok(res) => res,
+            Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        Ok(res)
+    }
+    else {
+        let e: String = "Could not send verification email.".to_string();
+        Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    }
+    
 
 }
 
@@ -148,14 +222,27 @@ pub async fn get_user_by_handle(
     username: &String,
     pool: &Pool<Postgres>
 ) -> Result<JadeUser, JadeErr> {
-    let user: JadeUser = match sqlx::query!("SELECT FROM users WHERE username=$1", username)
-        .execute(pool)
+    let users: Vec<JadeUser> = match sqlx::query_as!(JadeUser, "SELECT * FROM users")
+        .fetch_all(pool)
         .await
     {
-        Ok(user) => user,
+        Ok(users) => users,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    Ok(user)
+    let mut result: Vec<JadeUser> = Vec::new();
+    for user in users {
+        if &user.username == username {
+            result.push(user);
+        }
+        else {}
+    }
+    if result.len() == 1{
+        Ok(result[0].clone())
+    }
+    else{
+        let e: String = format!("User \"{}\" does not exist.", &username);
+        Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    }
 }
 
 /// Attempts to delete a user given one of their API tokens.
@@ -168,22 +255,21 @@ pub async fn wipe_user(
     payload: &TokenOnlyPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr> {
-    let mut result: usize = 1;
-    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
         Ok(token) => token,
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let _wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username=$1", token.username)
+    let _wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username = $1", token.username)
         .execute(pool)
         .await
     {
-        Ok(_feedback) => result = 0,
+        Ok(_feedback) => {},
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let status: StatusResponse = StatusResponse{ status: result };
+    let status: StatusResponse = StatusResponse{ status: 0 };
     Ok(status)
 }
 
@@ -195,7 +281,7 @@ pub async fn create_new_mood(
     payload: &MoodActionPayload,
     pool: &Pool<Postgres>
 ) -> Result<JadeMood, JadeErr> {
-    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
@@ -221,16 +307,16 @@ pub async fn create_new_mood(
     }
     if token.can_set_mood{
         let new_mood: JadeMood = JadeMood {
-            mood: payload.mood,
+            mood: payload.mood.clone(),
             is_active: true,
             username: username,
             created_at: get_time()
         };
         let _insert_op = match sqlx::query!(
-            "INSERT INTO moods (username, mood, is_active, created_at) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO moods (username, is_active, mood, created_at) VALUES ($1, $2, $3, $4)",
             new_mood.username,
-            new_mood.mood,
             new_mood.is_active,
+            new_mood.mood,
             new_mood.created_at,
         )
             .execute(pool)
@@ -258,22 +344,21 @@ pub async fn wipe_mood(
     payload: &MoodActionPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr> {
-    let mut result: usize = 1;
-    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
         Ok(token) => token,
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let _wipe_op: () = match sqlx::query!("DELETE FROM moods WHERE username=$1", token.username)
+    let _wipe_op: () = match sqlx::query!("DELETE FROM moods WHERE username = $1", token.username)
         .execute(pool)
         .await
     {
-        Ok(_feedback) => result = 0,
+        Ok(_feedback) => {},
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let status: StatusResponse = StatusResponse{ status: result };
+    let status: StatusResponse = StatusResponse{ status: 0 };
     Ok(status)
 }
 
@@ -299,23 +384,25 @@ pub async fn create_new_token(
             Err(e) => return Err::<APIToken, JadeErr>(JadeErr::new(&e.to_string()))
         };
         let new_token: APIToken = APIToken{
+            username: payload.username.clone(),
             token: hashed,
             created_at: get_time(),
             is_active: true,
-            username: payload.username.clone(),
             can_change_pwd: payload.can_change_pwd,
             can_set_mood: payload.can_set_mood,
-            can_delete_user: payload.can_delete_user
+            can_delete_user: payload.can_delete_user,
+            can_change_email: payload.can_change_email.clone(),
         };
         let _insert_op = match sqlx::query!(
-            "INSERT INTO api_tokens (token, created_at, is_active, username, can_change_pwd, can_set_mood, can_delete_user) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            "INSERT INTO api_tokens (username, token, created_at, is_active, can_change_pwd, can_set_mood, can_delete_user, can_change_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            new_token.username,
             new_token.token,
             new_token.created_at,
             new_token.is_active,
-            new_token.username,
             new_token.can_change_pwd,
             new_token.can_set_mood,
-            new_token.can_delete_user
+            new_token.can_delete_user,
+            new_token.can_change_email
         )
             .execute(pool)
             .await
@@ -342,8 +429,7 @@ pub async fn wipe_token(
     payload: &DeleteTokenPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr> {
-    let mut result: usize = 1;
-    let token: APIToken = match sqlx::query!("SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
@@ -355,14 +441,14 @@ pub async fn wipe_token(
         Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
     if user.pwd == payload.password{
-        let _wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username=$1", token.username)
+        let _wipe_op: () = match sqlx::query!("DELETE FROM users WHERE username = $1", token.username)
             .execute(pool)
             .await
         {
-            Ok(_feedback) => result = 0,
+            Ok(_feedback) => {},
             Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
         };
-        let status: StatusResponse = StatusResponse{ status: result };
+        let status: StatusResponse = StatusResponse{ status: 0 };
         Ok(status)
     }
     else {
@@ -381,7 +467,7 @@ pub async fn update_user_password(
     payload: &ChangeEntityPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr>{
-    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
@@ -422,7 +508,7 @@ pub async fn update_user_email(
     payload: &ChangeEntityPayload,
     pool: &Pool<Postgres>
 ) -> Result<StatusResponse, JadeErr>{
-    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT FROM api_tokens WHERE token=$1", payload.api_token)
+    let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
         .await
     {
@@ -466,7 +552,7 @@ pub async fn get_user_mood(
         Ok(user) => user,
         Err(e) => return Err::<JadeMood, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let moods: Vec<JadeMood> = match sqlx::query_as!(JadeMood, "SELECT * FROM moods WHERE username=$1", user.username)
+    let moods: Vec<JadeMood> = match sqlx::query_as!(JadeMood, "SELECT * FROM moods WHERE username = $1", user.username)
         .fetch_all(pool)
         .await
     {
