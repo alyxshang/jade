@@ -55,6 +55,8 @@ use super::api::delete_mood;
 use super::api::delete_token;
 use super::api::delete_user;
 use super::api::get_mood;
+use super::api::change_user_email;
+use super::api::change_user_pwd;
 use super::api::get_moods;
 use super::api::get_tokens;
 use super::api::set_mood;
@@ -105,6 +107,8 @@ pub async fn run_app(config: &ConfigData) -> Result<(), JadeErr> {
                 .route("/user/create", post().to(create_user))
                 .route("/mood/create", post().to(set_mood))
                 .route("/mood/delete", post().to(delete_mood))
+                .route("/user/update/pwd", post().to(change_user_pwd))
+                .route("/user/update/email", post().to(change_user_email))
                 .route("/mood/get", get().to(get_mood))
                 .route("/moods/get", get().to(get_moods))
                 .route("/tokens/get", get().to(get_tokens))

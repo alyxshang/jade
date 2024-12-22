@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO api_tokens (token, created_at, is_active, username, can_change_pwd, can_set_mood, can_delete_user) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe3bb058ebe4dde463fc18957243b605c9ed91423baf68c85cf3f3b48af31a60"
+}

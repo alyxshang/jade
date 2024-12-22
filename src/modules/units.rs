@@ -37,16 +37,15 @@ pub struct JadeUser {
     pub email: String,
     pub username: String,
     pub pwd: String,
-    pub moods: Vec<JadeMood>,
-    pub api_tokens: Vec<APIToken>
 }
 
 /// A structure containing information
 /// on a saved Jade mood.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeMood {
-    pub id: String,
     pub mood: String,
+    pub is_active: bool,
+    pub username: String,
     pub created_at: String
 }
 
@@ -57,6 +56,7 @@ pub struct APIToken {
     pub token: String,
     pub created_at: String,
     pub is_active: bool,
+    pub username: String,
     pub can_change_pwd: bool,
     pub can_set_mood: bool,
     pub can_delete_user: bool,
@@ -145,6 +145,26 @@ pub struct StatusResponse {
 #[derive(Deserialize)]
 pub struct UsernameOnlyPayload{
     pub username: String
+}
+
+/// This structure returns
+/// all moods a user has.
+/// These include both active
+/// and inactive moods.
+#[derive(Serialize)]
+pub struct UserMoodsResponse {
+    pub active_mood: JadeMood,
+    pub inactive_moods: Vec<JadeMood>
+}
+
+/// A structure containing
+/// a payload to let the 
+/// user retrieve their
+/// active tokens.
+#[derive(Deserialize)]
+pub struct UserAPITokensPayload {
+    pub username: String,
+    pub password: String
 }
 
 /// A structure containing

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT FROM api_tokens WHERE token=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7f4ec9fe4f700adba188a3a585558cd94d81eea9a3c6b5db3a257fe151097bf"
+}
