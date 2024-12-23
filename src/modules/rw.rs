@@ -112,7 +112,7 @@ use super::units::UserAPITokensPayload;
 /// the user has submitted. If the operation succeeds,
 /// a boolean "true" is returned. If the operation fails,
 /// an error is returned or a boolean "false" is returned.
-pub async fn verify_email(
+pub async fn verify_user_email(
     email_token: &String,
     pool: &Pool<Postgres>
 ) -> Result<bool, JadeErr> {
@@ -164,7 +164,8 @@ pub async fn verify_email(
 /// returned. If this operation fails, an error is returned.
 pub async fn write_user(
     payload: &CreateUserPayload,
-    pool: &Pool<Postgres>
+    pool: &Pool<Postgres>,
+    smtp_server: &String
 ) -> Result<JadeUser, JadeErr> {
     let hashed_pwd = match hash(payload.password.clone(), DEFAULT_COST){
         Ok(hashed) => hashed,
@@ -178,7 +179,7 @@ pub async fn write_user(
         username: payload.username.clone(),
         email: payload.email.clone(),
         pwd: hashed_pwd,
-        email_token: hashed_email,
+        email_token: hashed_email.clone(),
         is_active: false
     };
     let _insert_op = match sqlx::query!(
@@ -195,7 +196,11 @@ pub async fn write_user(
         Ok(_feedback) => {},
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let send_res: bool = match send_email(from, to, subject, msg, server).await {
+    let email_sub: String = format!("Confirm your email address, {}.", &payload.username);
+    let from_addr: String = format!("Jade <noreply@{}>", smtp_server);
+    let to_addr: String = format!("{} <{}>", &payload.username, &payload.email);
+    let message: String = format!("Please copy and paste this link into your browser to confirm your email address: {}/email/verify/{}",smtp_server, hashed_email.clone());
+    let send_res: bool = match send_email(&from_addr, &to_addr, &email_sub, &message, smtp_server).await {
         Ok(send_res) => send_res,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };

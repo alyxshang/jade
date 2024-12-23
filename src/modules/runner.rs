@@ -130,7 +130,7 @@ pub async fn run_app(config: &ConfigData) -> Result<(), JadeErr> {
         Ok(connection) => connection,
         Err(e) => return Err::<(), JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let data: Data<AppData> = Data::new(AppData::new(&connection));
+    let data: Data<AppData> = Data::new(AppData::new(&connection, &config.smtp_server));
     let server = match HttpServer::new(
         move || {
             let cors = Cors::permissive()

@@ -3,6 +3,12 @@ Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
+/// Importing the
+/// "post" macro to
+/// receieve a post 
+/// request.
+use actix_web::post;
+
 /// Importing this crate's
 /// error structure.
 use super::err::JadeErr;
@@ -27,6 +33,12 @@ use super::rw::wipe_mood;
 /// structure so Jade
 /// can return JSON responses.
 use actix_web::web::Json;
+
+/// Importing the "Path"
+/// structure to extract
+/// an email verification
+/// token.
+use actix_web::web::Path;
 
 /// Importing the function
 /// to delete a user's API
@@ -63,10 +75,6 @@ use super::units::JadeUser;
 /// structure to send
 /// HTTP responses.
 use actix_web::HttpResponse;
-
-/// Importing a function to
-/// verify a user's email address.
-use super::rw::verify_email;
 
 /// Importing the function
 /// to retrieve a users mood.
@@ -105,6 +113,10 @@ use super::rw::update_user_email;
 /// to return information
 /// about the status of an operation.
 use super::units::StatusResponse;
+
+/// Importing a function to
+/// verify a user's email address.
+use super::rw::verify_user_email;
 
 /// Importing the structure
 /// for routes that only require an
@@ -151,6 +163,24 @@ use super::units::ChangeEntityPayload;
 /// a user's API tokens.
 use super::units::UserAPITokensPayload;
 
+/// Importing the structure to return
+/// information on whether email address
+/// verification was successful or not.
+use super::units::EmailVerificationStatus;
+
+#[post("/email/verify/{email_token}")]
+pub async fn verify_email(
+    token: Path<String>,
+    data: Data<AppData>
+) -> Result<HttpResponse, JadeErr> {
+    let verified: bool = match verify_user_email(&token, &data.pool).await {
+        Ok(verified) => verified,
+        Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let res: EmailVerificationStatus = EmailVerificationStatus{status:verified};
+    Ok(HttpResponse::Ok().json(res))
+}
+
 /// This API route attempts to create a new user
 /// with the given payload. If this operation
 /// fails, an error response is returend.
@@ -158,7 +188,7 @@ pub async fn create_user(
     payload: Json<CreateUserPayload>,
     data: Data<AppData>
 ) -> Result<HttpResponse, JadeErr> {
-    let created: JadeUser = match write_user(&payload, &data.pool).await {
+    let created: JadeUser = match write_user(&payload, &data.pool, &data.smtp_server).await {
         Ok(created) => created,
         Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };

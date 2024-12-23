@@ -179,11 +179,21 @@ pub struct UserAPITokensPayload {
     pub password: String
 }
 
+/// This structure returns
+/// a status that tells users
+/// whether their email address
+/// was verified or not.
+#[derive(Serialize)]
+pub struct EmailVerificationStatus {
+    pub status: bool
+}
+
 /// A structure containing
 /// a pool of database connections
 /// to make app data persist.
 pub struct AppData {
-    pub pool: Pool<Postgres>
+    pub pool: Pool<Postgres>,
+    pub smtp_server: String
 }
 
 /// Implementing generic
@@ -195,8 +205,8 @@ impl AppData{
     /// to create a new instance
     /// of the "AppData"
     /// structure.
-    pub fn new(pg_pool: &Pool<Postgres>) -> AppData{
-        AppData { pool: pg_pool.to_owned() }
+    pub fn new(pg_pool: &Pool<Postgres>, smtp_server: &String) -> AppData{
+        AppData { pool: pg_pool.to_owned(), smtp_server: smtp_server.to_owned() }
     }
 
 }
@@ -207,7 +217,8 @@ impl AppData{
 pub struct ConfigData{
     pub db_url: String,
     pub actix_host: String,
-    pub actix_port: String
+    pub actix_port: String,
+    pub smtp_server: String
 }
 
 /// Implementing generic
@@ -222,12 +233,14 @@ impl ConfigData{
     pub fn new(
         db_url: &String,
         actix_host: &String,
-        actix_port: &String
+        actix_port: &String,
+        smtp_server: &String
     ) -> ConfigData {
         ConfigData {
             db_url: db_url.to_owned(),
             actix_host: actix_host.to_owned(),
-            actix_port: actix_port.to_owned()
+            actix_port: actix_port.to_owned(),
+            smtp_server: smtp_server.to_owned()
         }
     }
     

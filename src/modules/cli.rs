@@ -55,10 +55,15 @@ pub async fn cli() -> Result<String, JadeErr>{
             Ok(port) => port,
             Err(e) => return Err::<String, JadeErr>(JadeErr::new(&e.to_string()))
         };
+        let smtp_server: String = match var("SMTP_SERVER"){
+            Ok(port) => port,
+            Err(e) => return Err::<String, JadeErr>(JadeErr::new(&e.to_string()))
+        };
         let config: ConfigData = ConfigData::new(
             &db_url,
             &host,
-            &port
+            &port,
+            &smtp_server
         );
         let _runner: () = match run_app(&config).await{
             Ok(_runner) => _runner,

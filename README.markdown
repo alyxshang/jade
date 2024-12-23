@@ -10,12 +10,14 @@ This repository contains the source code for ***Jade***. ***Jade*** is a small f
 
 ***THIS PROJECT IS STILL HEAVILY WORK IN PROGRESS.***
 
-- [ ] Add E-Mail verification.
-- [ ] Add support for creating Fediverse accounts and using them.
-- [ ] Unit testing for whatever possible.
-- [x] Leanify the Docker image.
-- [x] Rust API documentation.
 - [ ] REST API documentation.
+- [ ] User profile picture upload.
+- [ ] Unit testing for whatever possible.
+- [ ] Add support for creating Fediverse accounts and using them.
+
+- [x] Rust API documentation.
+- [x] Add E-Mail verification at signup.
+- [x] Leanify the Docker image.
 
 ## DOCUMENTATION :book:
 
