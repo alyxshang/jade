@@ -1,6 +1,6 @@
 # API Routes
 
-# `/token/create`
+## `/token/create`
 
 This API route lets a user create a new API token. 
 The names in the value fields represent the data types
@@ -35,7 +35,7 @@ permissions.
 }
 ```
 
-# `/token/delete`
+## `/token/delete`
 
 This API route lets a user delete an API token. 
 The names in the value fields represent the data types
@@ -59,7 +59,7 @@ expected of each key. The `"number"` in the response object can be either one or
 }
 ```
 
-# `/user/delete`
+## `/user/delete`
 
 This API route lets a user create a new API token. 
 
@@ -73,7 +73,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/user/create`
+## `/user/create`
 
 This API route lets a user create a new API token. 
 
@@ -87,7 +87,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/mood/create`
+## `/mood/create`
 
 This API route lets a user create a new API token. 
 
@@ -101,7 +101,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/mood/delete`
+## `/mood/delete`
 
 This API route lets a user create a new API token. 
 
@@ -115,7 +115,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/user/update/pwd`
+## `/user/update/pwd`
 
 This API route lets a user create a new API token. 
 
@@ -129,7 +129,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/user/update/email`
+## `/user/update/email`
 
 This API route lets a user create a new API token. 
 
@@ -143,7 +143,7 @@ This API route lets a user create a new API token.
 ```JSON
 ```
 
-# `/mood/get`
+## `/mood/get`
 
 This API route lets a user create a new API token. 
 
@@ -166,7 +166,7 @@ This API route lets a user create a new API token.
 }
 ```
 
-# `/moods/get`
+## `/moods/get`
 
 This API route lets a user create a new API token. 
 
@@ -187,7 +187,7 @@ This API route lets a user create a new API token.
 }
 ```
 
-# `/tokens/get`
+## `/tokens/get`
 
 This API route lets a user create a new API token. 
 The names in the value fields represent the data types
@@ -210,5 +210,5 @@ expected of each key.
 }
 ```
 
-# `/files/upload`
-# `/email/verify/{email_token}`
+## `/files/upload`
+## `/email/verify/{email_token}`
