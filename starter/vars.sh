@@ -1,5 +1,0 @@
-export ACTIX_HOST=
-export ACTIX_PORT=
-export POSTGRES_PASSWORD=
-export SMTP_SERVER=
-export SMTP_SENDER=
