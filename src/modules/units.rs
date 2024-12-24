@@ -30,6 +30,19 @@ use serde::Deserialize;
 /// crate.
 use sqlx::postgres::Postgres;
 
+/// Importing the entitiy to store 
+/// metadata about files uploaded.
+use actix_multipart::form::json::Json;
+
+/// Importing the trait to make
+/// multipart file uploads.
+use actix_multipart::form::MultipartForm;
+
+/// Importing the structure to store
+/// temporary files to make
+/// multipart file uploads.
+use actix_multipart::form::tempfile::TempFile;
+
 /// A data structure containing information
 /// on a Jade User.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
@@ -45,6 +58,7 @@ pub struct JadeUser {
 /// a Jade user has uploaded.
 #[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct JadeUserFile {
+    pub file_id: String,
     pub username: String,
     pub file_name: String,
     pub data: Vec<u8>
@@ -186,6 +200,24 @@ pub struct UserAPITokensPayload {
 #[derive(Serialize)]
 pub struct EmailVerificationStatus {
     pub status: bool
+}
+
+/// A structure that holds
+/// the metadata on an uploaded
+/// file.
+#[derive(Deserialize, Debug)]
+pub struct MetaData {
+    pub name: String,
+    pub api_token: String,
+}
+
+/// A structure to assist with
+/// file upload via "actix-multipart".
+#[derive(MultipartForm, Debug)]
+pub struct FileUploadForm {
+    #[multipart(limit = "100MB")]
+    pub file: TempFile,
+    pub metadata: Json<MetaData>
 }
 
 /// A structure containing

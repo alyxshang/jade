@@ -84,6 +84,11 @@ use super::api::delete_user;
 /// a user.
 use super::api::create_user;
 
+/// Importing the service
+/// function for verifying
+/// a user's email.
+use super::api::verify_email;
+
 /// Importing the "ConfigData"
 /// structure for explicit typing.
 use super::units::ConfigData;
@@ -107,6 +112,11 @@ use sqlx::postgres::Postgres;
 /// function for changing
 /// a user's password.
 use super::api::change_user_pwd;
+
+/// Importing the service
+/// function for uploading
+/// a file.
+use super::api::upload_user_file;
 
 /// Importing the service
 /// function for changing
@@ -155,8 +165,8 @@ pub async fn run_app(config: &ConfigData) -> Result<(), JadeErr> {
                 .route("/mood/get", get().to(get_mood))
                 .route("/moods/get", get().to(get_moods))
                 .route("/tokens/get", get().to(get_tokens))
-
-
+                .service(upload_user_file)
+                .service(verify_email)
         }
     ).bind(app_addr){
         Ok(server) => server,

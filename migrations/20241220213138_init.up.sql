@@ -26,7 +26,8 @@ CREATE TABLE api_tokens (
     FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
 );
 
-CREATE TABLE user_drive (
+CREATE TABLE user_files (
+    file_id TEXT NOT NULL,
     username TEXT NOT NULL PRIMARY KEY,
     file_name TEXT NOT NULL,
     data BYTEA,

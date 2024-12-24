@@ -69,6 +69,10 @@ use crate::MoodActionPayload;
 /// a user's account info.
 use crate::ChangeEntityPayload;
 
+/// Importing the structure that
+/// helps store user-uploaded files.
+use super::units::JadeUserFile;
+
 /// Importing the structure
 /// to see whether an operation
 /// was successful or not.
@@ -107,6 +111,79 @@ use super::units::UsernameOnlyPayload;
 /// retrieve information on active
 /// API tokens.
 use super::units::UserAPITokensPayload;
+
+/// This function attempts to get the
+/// user associated with the supplied API
+/// token. If this operation succeeds, an
+/// instance of the user whom the token belongs
+/// to is supplied. If the operation fails, an error
+/// is returned.
+pub async fn get_user_from_token(
+    api_token: &String, 
+    pool: &Pool<Postgres>
+) -> Result<JadeUser, JadeErr> {
+    let api_tokens: Vec<APIToken> = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens")
+        .fetch_all(pool)
+        .await
+    {
+        Ok(users) => users,
+        Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let mut username: String = "".to_string();
+    for token in api_tokens {
+        if &token.token == api_token && token.is_active {
+            username = token.username;
+        }
+        else {}
+    }
+    if username == "".to_string(){
+        let e: String = "No user with the specified API token found.".to_string();
+        Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    }
+    else {
+        let user: JadeUser = match get_user_by_handle(&username, pool).await {
+            Ok(user) => user,
+            Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        Ok(user)
+    }
+}
+
+pub async fn store_file(
+    file: &Vec<u8>,
+    api_token: &String, 
+    name: &String,
+    pool: &Pool<Postgres>
+) -> Result<JadeUserFile, JadeErr>{
+    let user: JadeUser = match get_user_from_token(api_token,pool).await {
+        Ok(user) => user,
+        Err(e) => return Err::<JadeUserFile, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let hashed_id: String = match hash(format!("{}:{}", &name, get_time()), DEFAULT_COST){
+        Ok(hashed_id) => hashed_id,
+        Err(e) => return Err::<JadeUserFile, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let new_file: JadeUserFile = JadeUserFile{
+        file_id: hashed_id,
+        file_name: name.to_owned(),
+        username: user.username,
+        data: file.to_owned()
+    };
+    let _insert_op = match sqlx::query!(
+        "INSERT INTO user_files (file_id, username, file_name, data) VALUES ($1, $2, $3, $4)",
+        new_file.file_id,
+        new_file.username,
+        new_file.file_name,
+        new_file.data,
+    )
+        .execute(pool)
+        .await
+    {
+        Ok(_feedback) => {},
+        Err(e) => return Err::<JadeUserFile, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    Ok(new_file)  
+}
 
 /// This function attempts to verify the email
 /// the user has submitted. If the operation succeeds,
@@ -171,15 +248,19 @@ pub async fn write_user(
         Ok(hashed) => hashed,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
-    let hashed_email = match hash(&format!("{}{}{}", &payload.username, &payload.email, get_time()), DEFAULT_COST){
+    let hashed_email_token = match hash(&format!("{}{}{}", &payload.username, &payload.email, get_time()), DEFAULT_COST){
+        Ok(hashed) => hashed,
+        Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let hashed_email = match hash(&payload.email, DEFAULT_COST){
         Ok(hashed) => hashed,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
     };
     let new_user: JadeUser = JadeUser{
         username: payload.username.clone(),
-        email: payload.email.clone(),
+        email: hashed_email.clone(),
         pwd: hashed_pwd,
-        email_token: hashed_email.clone(),
+        email_token: hashed_email_token.clone(),
         is_active: false
     };
     let _insert_op = match sqlx::query!(
@@ -199,7 +280,7 @@ pub async fn write_user(
     let email_sub: String = format!("Confirm your email address, {}.", &payload.username);
     let from_addr: String = format!("Jade <noreply@{}>", smtp_server);
     let to_addr: String = format!("{} <{}>", &payload.username, &payload.email);
-    let message: String = format!("Please copy and paste this link into your browser to confirm your email address: {}/email/verify/{}",smtp_server, hashed_email.clone());
+    let message: String = format!("Please copy and paste this link into your browser to confirm your email address: {}/email/verify/{}",smtp_server, hashed_email_token.clone());
     let send_res: bool = match send_email(&from_addr, &to_addr, &email_sub, &message, smtp_server).await {
         Ok(send_res) => send_res,
         Err(e) => return Err::<JadeUser, JadeErr>(JadeErr::new(&e.to_string()))
@@ -284,7 +365,7 @@ pub async fn wipe_user(
 /// error is returned.
 pub async fn create_new_mood(
     payload: &MoodActionPayload,
-    pool: &Pool<Postgres>
+    pool: &Pool<Postgres>,
 ) -> Result<JadeMood, JadeErr> {
     let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
@@ -511,7 +592,8 @@ pub async fn update_user_password(
 /// structure with the status code of 1.
 pub async fn update_user_email(
     payload: &ChangeEntityPayload,
-    pool: &Pool<Postgres>
+    pool: &Pool<Postgres>,
+    smtp_server: &String
 ) -> Result<StatusResponse, JadeErr>{
     let token: APIToken = match sqlx::query_as!(APIToken, "SELECT * FROM api_tokens WHERE token = $1", payload.api_token)
         .fetch_one(pool)
@@ -528,7 +610,11 @@ pub async fn update_user_email(
        token.can_change_pwd && 
        token.username == user.username 
     {
-        let _update_op: () = match sqlx::query!("UPDATE users SET email = $1 WHERE username = $2", payload.new_entity, user.username)
+        let hashed_email: String = match hash(&payload.new_entity, DEFAULT_COST){
+            Ok(hashed_email) => hashed_email,
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        let _update_op: () = match sqlx::query!("UPDATE users SET email = $1 WHERE username = $2", hashed_email, user.username)
             .execute(pool)
             .await
         {
@@ -536,8 +622,34 @@ pub async fn update_user_email(
             Ok(_feedback) => {},
             Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
         };
-        let status: StatusResponse = StatusResponse{ status: 0 };
-        Ok(status)
+        let hashed_email_token = match hash(&format!("{}{}{}", &user.username, &payload.new_entity, get_time()), DEFAULT_COST){
+            Ok(hashed) => hashed,
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        let _update_token_op: () = match sqlx::query!("UPDATE users SET email_token = $1 WHERE username = $2", hashed_email_token, user.username)
+            .execute(pool)
+            .await
+        {
+
+            Ok(_feedback) => {},
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        let email_sub: String = format!("Confirm your new email address, {}.", &user.username);
+        let from_addr: String = format!("Jade <noreply@{}>", smtp_server);
+        let to_addr: String = format!("{} <{}>", &user.username, &payload.new_entity);
+        let message: String = format!("Please copy and paste this link into your browser to confirm your email address: {}/email/verify/{}",smtp_server, hashed_email_token.clone());
+        let send_res: bool = match send_email(&from_addr, &to_addr, &email_sub, &message, smtp_server).await {
+            Ok(send_res) => send_res,
+            Err(e) => return Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        };
+        if send_res{
+            let status: StatusResponse = StatusResponse{ status: 0};
+            Ok(status)
+        }
+        else {
+            let e: String = "Could not send verification email.".to_string();
+            Err::<StatusResponse, JadeErr>(JadeErr::new(&e.to_string()))
+        }
     }
     else {
         let e: String = "Token not active or usernames did not match!".to_string();

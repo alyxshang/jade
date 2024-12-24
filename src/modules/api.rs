@@ -3,11 +3,15 @@ Jade by Alyx Shang.
 Licensed under the FSL v1.
 */
 
+use std::io::Read;
+
 /// Importing the
 /// "post" macro to
 /// receieve a post 
 /// request.
 use actix_web::post;
+
+use crate::JadeUserFile;
 
 /// Importing this crate's
 /// error structure.
@@ -41,6 +45,11 @@ use actix_web::web::Json;
 use actix_web::web::Path;
 
 /// Importing the function
+/// to store files in the
+/// database.
+use super::rw::store_file;
+
+/// Importing the function
 /// to delete a user's API
 /// token from the database.
 use super::rw::wipe_token;
@@ -60,6 +69,7 @@ use super::units::AppData;
 /// structure for explicit
 /// typing.
 use super::units::APIToken;
+
 
 /// Importing the "JadeMood"
 /// structure for explicit
@@ -85,10 +95,6 @@ use super::rw::get_user_mood;
 /// user has ever posted.
 use super::rw::get_user_moods;
 
-/// Importing the payload to 
-/// wipe tokens.
-use crate::DeleteTokenPayload;
-
 /// Importing the function
 /// to retrieve all moods a 
 /// user has ever used.
@@ -108,6 +114,10 @@ use super::rw::create_new_token;
 /// to create a update a user's
 /// email address.
 use super::rw::update_user_email;
+
+/// Importing the structure that emulates
+/// a form for uploading files.
+use super::units::FileUploadForm;
 
 /// Importing the structure
 /// to return information
@@ -143,6 +153,10 @@ use super::units::UserMoodsResponse;
 /// for creating new users.
 use super::units::CreateUserPayload;
 
+/// Importing the payload to 
+/// wipe tokens.
+use super::units::DeleteTokenPayload;
+
 /// Importing the structure
 /// that helps submit information
 /// for creating new API tokens.
@@ -163,10 +177,31 @@ use super::units::ChangeEntityPayload;
 /// a user's API tokens.
 use super::units::UserAPITokensPayload;
 
+/// Importing the trait to make
+/// multipart file uploads.
+use actix_multipart::form::MultipartForm;
+
 /// Importing the structure to return
 /// information on whether email address
 /// verification was successful or not.
 use super::units::EmailVerificationStatus;
+
+#[post("files/upload")]
+pub async fn upload_user_file(
+    MultipartForm(form): MultipartForm<FileUploadForm>,
+    data: Data<AppData>
+) -> Result<HttpResponse, JadeErr>{
+    let mut buf: Vec<u8> = Vec::new();
+    let _read_op: usize = match form.file.file.as_file().read_to_end(&mut buf){
+        Ok(_read_op) => _read_op,
+        Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    let user_file: JadeUserFile = match store_file(&buf, &form.metadata.api_token, &form.metadata.name, &data.pool).await {
+        Ok(user_file) => user_file,
+        Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
+    };
+    Ok(HttpResponse::Ok().json(user_file))
+}
 
 #[post("/email/verify/{email_token}")]
 pub async fn verify_email(
@@ -288,7 +323,7 @@ pub async fn change_user_email(
     payload: Json<ChangeEntityPayload>,
     data: Data<AppData>
 ) -> Result<HttpResponse, JadeErr> {
-    let op_status: StatusResponse = match update_user_email(&payload, &data.pool).await {
+    let op_status: StatusResponse = match update_user_email(&payload, &data.pool, &data.smtp_server).await {
         Ok(op_status) => op_status,
         Err(e) => return Err::<HttpResponse, JadeErr>(JadeErr::new(&e.to_string()))
     };
