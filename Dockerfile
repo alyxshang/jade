@@ -13,5 +13,5 @@ CMD ["bash", "starter/starter.sh"]
 FROM debian:stable-slim
 COPY --from=builder /jade-api/target/release/jade /jade
 COPY --from=builder /jade-api/starter/starter.sh/ /starter.sh
-ENTRYPOINT ["bash", "/starter.sh"]
+ENTRYPOINT ["/jade -r"]
 EXPOSE 8080
